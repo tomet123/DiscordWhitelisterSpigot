@@ -1,5 +1,6 @@
 package uk.co.angrybee.joe;
 
+import fr.xephi.authme.api.v3.AuthMeApi;
 import org.bukkit.Server;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -47,6 +48,7 @@ public class DiscordWhitelister extends JavaPlugin
     private static JavaPlugin thisPlugin;
     private static Server thisServer;
     private static Logger pluginLogger;
+    private static AuthMeApi authMeApi;
 
     // For not counting vanished players when other players join/leave
     private static int vanishedPlayersCount;
@@ -54,9 +56,14 @@ public class DiscordWhitelister extends JavaPlugin
     @Override
     public void onEnable()
     {
+        authMeApi = AuthMeApi.getInstance();
+        if(authMeApi==null){
+            throw new RuntimeException("authme not found");
+        }
         thisPlugin = this;
         thisServer = thisPlugin.getServer();
         pluginLogger = thisPlugin.getLogger();
+
 
         int initSuccess = InitBot(true);
 
@@ -77,6 +84,10 @@ public class DiscordWhitelister extends JavaPlugin
     public static JavaPlugin getPlugin()
     {
         return thisPlugin;
+    }
+
+    public static AuthMeApi getAuthMeApi() {
+        return authMeApi;
     }
 
     public static FileConfiguration getWhitelisterBotConfig()
@@ -386,6 +397,15 @@ public class DiscordWhitelister extends JavaPlugin
                 if(!configCreated)
                 {
                     getPlugin().getLogger().warning("Entry 'username-validation' was not found, adding it to the config...");
+                }
+            }
+            if(getWhitelisterBotConfig().get("default_pass") == null)
+            {
+                getWhitelisterBotConfig().set("default_pass", "ASDHJK");
+
+                if(!configCreated)
+                {
+                    getPlugin().getLogger().warning("Entry 'default_pass' was not found, adding it to the config...");
                 }
             }
 

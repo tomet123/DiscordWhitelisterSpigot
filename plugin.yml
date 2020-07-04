@@ -3,6 +3,8 @@ version: 1.3.5
 author: Joe Shimell
 main: uk.co.angrybee.joe.DiscordWhitelister
 description: Discord whitelister bot.
+depend:
+  - AuthMe
 commands:
   discordwhitelister:
     description: See info about this plugin
