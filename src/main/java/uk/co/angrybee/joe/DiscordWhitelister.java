@@ -1,6 +1,7 @@
 package uk.co.angrybee.joe;
 
 import fr.xephi.authme.api.v3.AuthMeApi;
+import org.bukkit.Bukkit;
 import org.bukkit.Server;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
@@ -79,6 +80,7 @@ public class DiscordWhitelister extends JavaPlugin
         this.getCommand("discordwhitelister").setExecutor(new CommandStatus());
         this.getCommand("discordwhitelisterabout").setExecutor(new CommandAbout());
         this.getCommand("discordwhitelisterreload").setExecutor(new CommandReload());
+
     }
 
     public static JavaPlugin getPlugin()
@@ -146,7 +148,6 @@ public class DiscordWhitelister extends JavaPlugin
 
     public static int getOnlineUsers() { return thisPlugin.getServer().getOnlinePlayers().size() - vanishedPlayersCount; }
 
-    public static int getMaximumAllowedPlayers() { return thisPlugin.getServer().getMaxPlayers(); }
 
     public static int InitBot(boolean firstInit)
     {
@@ -230,8 +231,6 @@ public class DiscordWhitelister extends JavaPlugin
                 // Register events if enabled
                 thisServer.getPluginManager().registerEvents(new JoinLeaveEvents(), thisPlugin);
 
-                // Set initial player count
-                DiscordClient.SetPlayerCountStatus(getOnlineUsers());
             }
 
             return 0;
@@ -239,6 +238,9 @@ public class DiscordWhitelister extends JavaPlugin
 
         return 0;
     }
+
+
+
 
     public static void ConfigSetup()
     {

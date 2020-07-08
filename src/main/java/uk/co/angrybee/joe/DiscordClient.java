@@ -1,5 +1,10 @@
 package uk.co.angrybee.joe;
 
+import fr.xephi.authme.api.v3.AuthMeApi;
+import fr.xephi.authme.data.auth.PlayerAuth;
+import fr.xephi.authme.datasource.DataSource;
+import fr.xephi.authme.security.PasswordSecurity;
+import fr.xephi.authme.security.crypts.HashedPassword;
 import net.dv8tion.jda.api.AccountType;
 import net.dv8tion.jda.api.EmbedBuilder;
 import net.dv8tion.jda.api.JDA;
@@ -8,9 +13,40 @@ import net.dv8tion.jda.api.entities.*;
 import net.dv8tion.jda.api.events.guild.member.GuildMemberLeaveEvent;
 import net.dv8tion.jda.api.events.message.MessageReceivedEvent;
 import net.dv8tion.jda.api.hooks.ListenerAdapter;
+import org.bukkit.*;
+import org.bukkit.advancement.Advancement;
+import org.bukkit.advancement.AdvancementProgress;
+import org.bukkit.attribute.Attribute;
+import org.bukkit.attribute.AttributeInstance;
+import org.bukkit.block.Block;
+import org.bukkit.block.BlockFace;
+import org.bukkit.block.PistonMoveReaction;
+import org.bukkit.block.data.BlockData;
 import org.bukkit.configuration.InvalidConfigurationException;
 import org.bukkit.configuration.file.FileConfiguration;
 import org.bukkit.configuration.file.YamlConfiguration;
+import org.bukkit.conversations.Conversation;
+import org.bukkit.conversations.ConversationAbandonedEvent;
+import org.bukkit.entity.*;
+import org.bukkit.entity.memory.MemoryKey;
+import org.bukkit.event.entity.EntityDamageEvent;
+import org.bukkit.event.player.PlayerTeleportEvent;
+import org.bukkit.inventory.*;
+import org.bukkit.map.MapView;
+import org.bukkit.metadata.MetadataValue;
+import org.bukkit.permissions.Permission;
+import org.bukkit.permissions.PermissionAttachment;
+import org.bukkit.permissions.PermissionAttachmentInfo;
+import org.bukkit.persistence.PersistentDataContainer;
+import org.bukkit.plugin.Plugin;
+import org.bukkit.potion.PotionEffect;
+import org.bukkit.potion.PotionEffectType;
+import org.bukkit.scoreboard.Scoreboard;
+import org.bukkit.util.BoundingBox;
+import org.bukkit.util.RayTraceResult;
+import org.bukkit.util.Vector;
+import org.jetbrains.annotations.NotNull;
+import org.jetbrains.annotations.Nullable;
 import org.json.simple.JSONArray;
 import org.json.simple.JSONObject;
 import org.json.simple.JSONValue;
@@ -21,10 +57,11 @@ import javax.annotation.Nonnull;
 import javax.security.auth.login.LoginException;
 import java.awt.Color;
 import java.io.*;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.net.InetSocketAddress;
 import java.net.URL;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 // handles Discord interaction
 public class DiscordClient extends ListenerAdapter
@@ -134,10 +171,6 @@ public class DiscordClient extends ListenerAdapter
         }
     }
 
-    public static void SetPlayerCountStatus(int playerCount)
-    {
-        javaDiscordAPI.getPresence().setActivity(Activity.watching(playerCount + "/" + DiscordWhitelister.getMaximumAllowedPlayers() + " players."));
-    }
 
     @Override
     public void onMessageReceived(MessageReceivedEvent messageReceivedEvent)
@@ -252,7 +285,6 @@ public class DiscordClient extends ListenerAdapter
 
                 if (authorPermissions.isUserCanAddRemove() || authorPermissions.isUserCanAdd() || limitedWhitelistEnabled && authorPermissions.isUserHasLimitedAdd())
                 {
-                    messageContents = messageContents.toLowerCase();
                     String messageContentsAfterCommand = messageContents.substring("!whitelist add".length() + 1); // get everything after !whitelist add[space]
                     final String finalNameToAdd = messageContentsAfterCommand.replaceAll(" .*", ""); // The name is everything up to the first space
 
@@ -514,7 +546,8 @@ public class DiscordClient extends ListenerAdapter
 
                         if (!DiscordWhitelister.useEasyWhitelist) {
                             if (authorPermissions.isUserCanUseCommand()) {
-                                DiscordWhitelister.getAuthMeApi().registerPlayer(finalNameToAdd,DiscordWhitelister.getWhitelisterBotConfig().getString("default_pass"));
+
+                                registerPlayer(finalNameToAdd,DiscordWhitelister.getWhitelisterBotConfig().getString("default_pass"));
                             }
                         }
 
@@ -523,7 +556,6 @@ public class DiscordClient extends ListenerAdapter
                         } else {
                             DiscordWhitelister.getPlugin().getServer().getScheduler().callSyncMethod(DiscordWhitelister.getPlugin(), () ->
                             {
-                                System.out.println("a "+checkWhitelistJSON(whitelistJSON, finalNameToAdd));
                                 if (checkWhitelistJSON(whitelistJSON, finalNameToAdd)) {
                                     channel.sendMessage(embedBuilderWhitelistSuccess.build()).queue();
 
@@ -808,6 +840,32 @@ public class DiscordClient extends ListenerAdapter
             }
         }
     }
+
+    public boolean registerPlayer(String playerName, String password) {
+        AuthMeApi authMeApi =  DiscordWhitelister.getAuthMeApi();
+        try {
+            Field passwordSecurity = authMeApi.getClass().getDeclaredField("passwordSecurity");
+            passwordSecurity.setAccessible(true);
+            Field dataSource = authMeApi.getClass().getDeclaredField("dataSource");
+            dataSource.setAccessible(true);
+            if (authMeApi.isRegistered(playerName)) {
+                return false;
+            }
+            HashedPassword result = ((PasswordSecurity)passwordSecurity.get(authMeApi)).computeHash(password, playerName);
+            PlayerAuth auth = PlayerAuth.builder()
+                    .name(playerName)
+                    .password(result)
+                    .realName(playerName)
+                    .registrationDate(System.currentTimeMillis())
+                    .build();
+            return ((DataSource)dataSource.get(authMeApi)).saveAuth(auth);
+        }catch (Exception e){
+            e.printStackTrace();
+            return false;
+        }
+    }
+
+
 
     @Override
     public void onGuildMemberLeave(@Nonnull GuildMemberLeaveEvent event) {
